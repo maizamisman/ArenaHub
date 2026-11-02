@@ -13,3 +13,9 @@ export function checkAccess(user: SessionUser | null, need: Need): Access {
 }
 
 export const HOME: Record<SessionUser["role"], string> = { admin: "/staff/admin", pic: "/staff/pic" };
+
+/** Changing a password needs a full sign-in: the Admin must have passed 2FA first. */
+export function canChangePassword(user: SessionUser | null): boolean {
+  const a = checkAccess(user, "staff");
+  return a === "ok" || a === "change-password";
+}

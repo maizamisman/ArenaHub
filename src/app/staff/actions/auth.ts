@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { login, completeMfa, changePassword, endSession, totpSecretFor, sessionUserFromId } from "@/auth/session";
 import { getSessionId, setSessionCookie, clearSessionCookie, getSessionUser } from "@/auth/request";
-import { HOME } from "@/auth/guard";
+import { HOME, canChangePassword } from "@/auth/guard";
 
 export type FormState = { error?: string; email?: string };
 const SETUP_COOKIE = "ah_totp_setup";
@@ -41,9 +41,10 @@ export async function mfaAction(_: FormState, form: FormData): Promise<FormState
 export async function changePasswordAction(_: FormState, form: FormData): Promise<FormState> {
   const user = await getSessionUser();
   if (!user) redirect("/staff/login");
+  if (!canChangePassword(user)) redirect("/staff/2fa");
   const next = String(form.get("next") ?? "");
   if (next !== String(form.get("confirm") ?? "")) return { error: "The two new passwords do not match." };
-  const r = changePassword(user.id, String(form.get("current") ?? ""), next);
+  const r = changePassword(user.id, String(form.get("current") ?? ""), next, await getSessionId());
   if (!r.ok) return { error: r.error };
   redirect(HOME[user.role]);
 }

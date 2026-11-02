@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { LiveSnapshot, LogLine, PublicMatch, EventKind } from "@/data/matches";
 import { useLive } from "@/lib/useLive";
+import { scoreView } from "@/lib/scoreView";
+import { withRetry } from "@/lib/retry";
 import { formatClock, matchClock } from "@/domain/clock";
 import { fmtDay, fmtTime } from "@/i18n";
 import { scoreDelta, changeStatus, correct, undo, addMatchEvent, reopen, type MatchResult } from "@/app/staff/actions/match";
@@ -26,9 +28,9 @@ export function ScoreControl({ initial, initialLog, snapshot, options, isAdmin }
   const [dialog, setDialog] = useState<null | "end" | "correct" | "event" | "reopen">(null);
   const [busy, setBusy] = useState(false);
 
-  // Newer data from polling (another device) wins, but not while our own taps are in flight.
+  // The newest known score (ours or another device's) plus our taps still in flight.
   const polled = live.snapshot.matches.find((x) => x.id === initial.id);
-  const m = pend.n === 0 && polled && polled.version > confirmed.version ? polled : confirmed;
+  const m = scoreView(confirmed, polled, { a: 0, b: 0 });
   const sa = m.score_a + pend.a, sb = m.score_b + pend.b;
   const a = m.team_a?.short_name ?? "To be decided", b = m.team_b?.short_name ?? "To be decided";
   const isLive = m.status === "live";
@@ -44,8 +46,12 @@ export function ScoreControl({ initial, initialLog, snapshot, options, isAdmin }
     if (!isLive) { toast("Scores change only while the match is live.", false); return; }
     if (delta === -1 && (side === "a" ? sa : sb) <= 0) { toast("The score is already 0.", false); return; }
     setPend((p) => ({ ...p, [side]: p[side] + delta, n: p.n + 1 }));
-    const r = await scoreDelta(m.id, side, delta, crypto.randomUUID()).catch(() => ({ ok: false as const, error: "No connection. The tap was not saved." }));
+    // One request id per tap; a retry after a lost reply cannot count twice.
+    const requestId = crypto.randomUUID();
+    const r = await withRetry(() => scoreDelta(m.id, side, delta, requestId), { attempts: 3, delayMs: 700 })
+      .catch(() => ({ ok: false as const, error: "Could not reach the server. Check the score before tapping again." }));
     accept(r);
+    if (!r.ok) void live.refresh();
     setPend((p) => ({ ...p, [side]: p[side] - delta, n: p.n - 1 }));
   }
 

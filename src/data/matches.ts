@@ -130,9 +130,13 @@ export function setStatus(
       if (next) {
         const target = getMatch(db, next.matchId);
         const col = next.side === "a" ? "team_a" : "team_b";
-        db.prepare(`UPDATE matches SET ${col} = ? WHERE id = ?`).run(next.team, next.matchId);
-        touch(db, next.matchId);
-        writeAudit(db, { userId: me.id, action: "advance", matchId: next.matchId, before: { [col]: target[col] }, after: { [col]: next.team } });
+        if (target[col] !== next.team) {
+          // A round already under way is never rewritten; the Admin must reopen it first.
+          if (target.status !== "upcoming") throw new RuleError("The winner has changed, but the next round has already started. Reopen the next round and change its teams first, then end this match again.");
+          db.prepare(`UPDATE matches SET ${col} = ? WHERE id = ?`).run(next.team, next.matchId);
+          touch(db, next.matchId);
+          writeAudit(db, { userId: me.id, action: "advance", matchId: next.matchId, before: { [col]: target[col] }, after: { [col]: next.team } });
+        }
       }
     }
     bumpLive(db);
@@ -169,6 +173,12 @@ export function undoLast(user: SessionUser, matchId: string): Match {
        ORDER BY rowid DESC LIMIT 1`,
     ).get(matchId, me.id, matchId) as { id: string; action: string; before: string; after: string } | undefined;
     if (!last) throw new RuleError("There is nothing of yours to undo on this match.");
+    // Undo only reverses your latest change while nobody has corrected, undone or reopened since.
+    const later = db.prepare(
+      `SELECT 1 FROM audit_log WHERE match_id = ? AND rowid > (SELECT rowid FROM audit_log WHERE id = ?)
+       AND (action IN ('score_correct', 'score_undo', 'reopen') OR (action = 'score_delta' AND ? = 'score_correct'))`,
+    ).get(matchId, last.id, last.action);
+    if (later) throw new RuleError("The score was changed after your last update. Use Correct score instead.");
     if (m.status === "full_time") throw new RuleError("This match is finished. Ask the Admin to reopen it first.");
 
     if (last.action === "score_delta") {

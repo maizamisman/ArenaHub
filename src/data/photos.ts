@@ -46,7 +46,7 @@ export function uploadPhoto(input: { bytes: Uint8Array; caption: string; consent
   const dir = uploadDir();
   fs.mkdirSync(dir, { recursive: true });
   const full = path.join(/* turbopackIgnore: true */ dir, file);
-  fs.writeFileSync(full, input.bytes);
+  fs.writeFileSync(full, stripMetadata(input.bytes));
   try {
     tx(db, () => {
       db.prepare("INSERT INTO photos (id, file, caption, created_at, status, by_admin, device_hash, reports) VALUES (?,?,?,?,?,0,?,0)")
@@ -147,4 +147,54 @@ export function storageUsedBytes(): number {
   const dir = uploadDir();
   if (!fs.existsSync(dir)) return 0;
   return fs.readdirSync(dir).reduce((n, f) => n + fs.statSync(path.join(/* turbopackIgnore: true */ dir, f)).size, 0);
+}
+
+/**
+ * Removes EXIF/XMP (which can hold GPS location) before a photo is published (PDPA).
+ * JPEG: drops APP1 and APP13 segments. PNG: drops eXIf and text chunks. WebP: drops EXIF and XMP chunks.
+ */
+export function stripMetadata(b: Uint8Array): Uint8Array {
+  const buf = Buffer.from(b);
+  const kind = sniffImage(buf);
+  if (kind?.ext === "jpg") {
+    const out: Buffer[] = [buf.subarray(0, 2)];
+    let p = 2;
+    while (p + 4 <= buf.length && buf[p] === 0xff) {
+      const marker = buf[p + 1];
+      if (marker === 0xda) break; // start of scan: image data follows
+      const len = buf.readUInt16BE(p + 2);
+      if (marker !== 0xe1 && marker !== 0xed) out.push(buf.subarray(p, p + 2 + len));
+      p += 2 + len;
+    }
+    out.push(buf.subarray(p));
+    return new Uint8Array(Buffer.concat(out));
+  }
+  if (kind?.ext === "png") {
+    const out: Buffer[] = [buf.subarray(0, 8)];
+    let p = 8;
+    while (p + 12 <= buf.length) {
+      const len = buf.readUInt32BE(p);
+      const type = buf.subarray(p + 4, p + 8).toString("latin1");
+      if (!["eXIf", "tEXt", "iTXt", "zTXt"].includes(type)) out.push(buf.subarray(p, p + 12 + len));
+      p += 12 + len;
+    }
+    return new Uint8Array(Buffer.concat(out));
+  }
+  if (kind?.ext === "webp") {
+    const out: Buffer[] = [];
+    let p = 12;
+    while (p + 8 <= buf.length) {
+      const type = buf.subarray(p, p + 4).toString("latin1");
+      const len = buf.readUInt32LE(p + 4);
+      const chunk = Buffer.from(buf.subarray(p, p + 8 + len + (len % 2)));
+      if (type === "VP8X") chunk[8] &= ~0x0c; // clear the EXIF and XMP flags
+      if (type !== "EXIF" && type !== "XMP ") out.push(chunk);
+      p += 8 + len + (len % 2);
+    }
+    const body = Buffer.concat(out);
+    const head = Buffer.from(buf.subarray(0, 12));
+    head.writeUInt32LE(body.length + 4, 4);
+    return new Uint8Array(Buffer.concat([head, body]));
+  }
+  return b;
 }

@@ -13,5 +13,6 @@ export async function compressImage(file: File, maxSide = 1600, quality = 0.8): 
   ctx.drawImage(bitmap, 0, 0, w, h);
   bitmap.close();
   const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, "image/jpeg", quality));
-  return blob && blob.size < file.size ? blob : file;
+  // Always send the re-encoded copy when there is one: re-encoding drops EXIF and GPS data.
+  return blob ?? file;
 }

@@ -72,20 +72,25 @@ export function completeMfa(sessionId: string, code: string, nowMs = Date.now(),
   const db = getDb();
   const u = sessionUserFromId(sessionId, nowMs);
   if (!u) return false;
+  const key = `mfa:${u.id}`;
+  // Five wrong codes in 10 minutes end the session, so codes cannot be guessed.
+  if (countRecent(db, key, LOCK_WINDOW_MS, nowMs) >= MAX_FAILURES) { endSession(sessionId); return false; }
   const secret = totpSecretFor(u.id) ?? setupSecret;
-  if (!secret || !verifyTotp(secret, code.trim(), nowMs)) return false;
+  if (!secret || !verifyTotp(secret, code.trim(), nowMs)) { record(db, key, nowMs); return false; }
+  clear(db, key);
   if (!totpSecretFor(u.id)) db.prepare("UPDATE users SET totp_secret = ? WHERE id = ?").run(secret, u.id);
   db.prepare("UPDATE sessions SET mfa_ok = 1 WHERE id = ?").run(sessionId);
   return true;
 }
 
-export function changePassword(userId: string, current: string, next: string): { ok: true } | { ok: false; error: string } {
+export function changePassword(userId: string, current: string, next: string, keepSessionId?: string): { ok: true } | { ok: false; error: string } {
   const db = getDb();
   const u = db.prepare("SELECT password_hash FROM users WHERE id = ?").get(userId) as { password_hash: string } | undefined;
   if (!u || !verifyPassword(current, u.password_hash)) return { ok: false, error: "Your current password is incorrect." };
   if (next.length < 10) return { ok: false, error: "Use at least 10 characters." };
   if (next === current) return { ok: false, error: "Choose a password different from the current one." };
   db.prepare("UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?").run(hashPassword(next), userId);
+  db.prepare("DELETE FROM sessions WHERE user_id = ? AND id != ?").run(userId, keepSessionId ?? "");
   db.prepare("INSERT INTO audit_log (id, at, user_id, action) VALUES (?,?,?,?)").run(uuid(), nowIso(), userId, "password_changed");
   return { ok: true };
 }

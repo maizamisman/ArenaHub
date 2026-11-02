@@ -59,6 +59,8 @@ export function createLivePoller(opts: {
 
   return {
     start() {
+      // Publish the clock offset from the server-rendered snapshot at once, before any poll.
+      opts.onChange(state);
       timer = setInterval(() => { if (doc.visibilityState === "visible") void poll(); }, POLL_MS);
       doc.addEventListener("visibilitychange", onVisible);
       win.addEventListener("online", onOnline);
