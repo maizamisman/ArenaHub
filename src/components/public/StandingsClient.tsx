@@ -38,7 +38,7 @@ export function StandingsClient({ lang, inputs, slots, sports }: { lang: Lang; i
         {podium.length > 0 && (
           <div className="pods" style={{ marginTop: 20 }}>
             {podium.map((r, i) => (
-              <button key={r.teamId} className={`pod rc r${i + 1}`} onClick={() => setOpen(r.teamId)} aria-label={`${r.rank}, ${r.team}`}>
+              <button key={r.teamId} className={`pod rc r${i + 1}`} onClick={() => setOpen(r.teamId)}>
                 <span className="k">{r.rank}</span><span className="tn">{r.team}</span>
                 <small><i className="md gold" />{r.gold}<i className="md silver" />{r.silver}<i className="md bronze" />{r.bronze}</small>
               </button>

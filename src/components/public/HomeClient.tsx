@@ -88,7 +88,8 @@ export function HomeClient({ lang, eventName, tagline, sections, standings, phot
       <section className="mf">
         <TrackRings />
         <div className="wrap">
-          <p className="tx" data-scrub aria-label={t.intro} style={{ "--n": words.length } as React.CSSProperties}>
+          <p className="tx" data-scrub style={{ "--n": words.length } as React.CSSProperties}>
+            <span className="sr-only">{t.intro}</span>
             {words.map((w, i) => <span className="wd" aria-hidden="true" style={{ "--i": i } as React.CSSProperties} key={i}>{w} </span>)}
           </p>
           <div className="nums">

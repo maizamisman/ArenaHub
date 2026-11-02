@@ -34,7 +34,7 @@ export function LiveClient({ lang, featuredId, sports }: { lang: Lang; featuredI
       </section>
 
       {feat && (
-        <GoLink className="feat" href={`/match/${feat.id}`} label={t.live} aria-label={`${t.openMatch}: ${teamLabel(feat.team_a, lang)} ${feat.score_a}, ${teamLabel(feat.team_b, lang)} ${feat.score_b}`}>
+        <GoLink className="feat" href={`/match/${feat.id}`} label={t.live}>
           <span className="fg">
             <span className="tn">{teamLabel(feat.team_a, lang)}</span>
             <span className="sc"><span className={`n${flash[feat.id]?.a ? " flash" : ""}`}>{feat.score_a}</span><span>-</span><span className={`n${flash[feat.id]?.b ? " flash" : ""}`}>{feat.score_b}</span></span>

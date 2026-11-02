@@ -155,7 +155,7 @@ export function PublicShell({ lang, modules, announcements, eventName, organiser
 
         <header className={`nav${path === "/" ? "" : " solid"}`} data-nav>
           <div className="nav-in">
-            <Link href="/" className="brand" aria-label={`Arena Hub, ${t.home}`} onClick={(e) => { e.preventDefault(); go("/", "Arena Hub"); }}>
+            <Link href="/" className="brand" aria-label={`ArenaHub, ${t.home}`} onClick={(e) => { e.preventDefault(); go("/", "Arena Hub"); }}>
               {logo ? <img src={logo} alt="" style={{ height: 34, width: "auto", maxWidth: 90, objectFit: "contain" }} /> : <span className="fl"><img src="/flags/flag-a.svg" alt="" /><img src="/flags/flag-h.svg" alt="" /></span>}
               <b>Arena<em>Hub</em></b>
             </Link>
@@ -173,7 +173,7 @@ export function PublicShell({ lang, modules, announcements, eventName, organiser
                 <button className={lang === "bm" ? "on" : ""} aria-pressed={lang === "bm"} onClick={() => setLang("bm")}>BM</button>
               </div>
               {modules.announcements && (
-                <button className="ic" onClick={() => setAnn((x) => !x)} aria-label={t.announcements} aria-expanded={ann}>
+                <button className="ic" onClick={() => setAnn((x) => !x)} aria-label={announcements.length ? `${t.announcements}, ${announcements.length}` : t.announcements} aria-expanded={ann}>
                   <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 11v2a1 1 0 0 0 1 1h3l9 5V5L7 10H4a1 1 0 0 0-1 1Z" /><path d="M20 9a4 4 0 0 1 0 6" /></svg>
                   {announcements.length > 0 && <i>{announcements.length}</i>}
                 </button>

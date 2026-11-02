@@ -79,8 +79,8 @@ export function PhotosClient({ lang, photos, approval }: { lang: Lang; photos: P
               const l = like(p);
               return (
                 <article className="pic" key={p.id}>
-                  <div className="rc"><button className="pbtn" onClick={() => setView(i)} aria-label={`${t.viewPhoto}: ${p.caption || stamp(p)}`}>
-                    <img src={p.src} alt={p.caption || t.photos} loading="lazy" />{p.by_admin && <span className="by">{t.byAdmin}</span>}
+                  <div className="rc"><button className="pbtn" onClick={() => setView(i)}>
+                    <img src={p.src} alt={`${t.viewPhoto}: ${p.caption || stamp(p)}`} loading="lazy" />{p.by_admin && <span className="by">{t.byAdmin}</span>}
                   </button></div>
                   <div className="pb">{p.caption && <b>{p.caption}</b>}
                     <div className="pf"><span>{stamp(p)}{!p.by_admin && !p.mine && <button className="rep" onClick={() => report(p)}>{t.report}</button>}</span>
