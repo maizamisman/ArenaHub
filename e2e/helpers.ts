@@ -41,7 +41,7 @@ export async function signInAina(page: Page) {
   await page.waitForURL(/change-password|staff\/pic/);
   if (page.url().includes("change-password")) {
     await page.getByLabel("Current password").fill(PIC_PASSWORD);
-    await page.getByLabel("New password").fill(NEW_PIC_PASSWORD);
+    await page.getByLabel("New password", { exact: true }).fill(NEW_PIC_PASSWORD);
     await page.getByLabel("Repeat new password").fill(NEW_PIC_PASSWORD);
     await page.getByRole("button", { name: "Save password" }).click();
   }

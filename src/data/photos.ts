@@ -3,7 +3,7 @@ import path from "node:path";
 import { getDb, tx, uploadDir, uuid } from "./db.ts";
 import { getSettings } from "./settings.ts";
 import { countRecent, record } from "../auth/rate-limit.ts";
-import { bumpLive } from "./audit.ts";
+import { bumpLive, writeAudit } from "./audit.ts";
 
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 export const MAX_CAPTION = 200;
@@ -115,4 +115,36 @@ export function readUpload(file: string): { bytes: Buffer; mime: string } | null
   const full = path.join(/* turbopackIgnore: true */ uploadDir(), file);
   if (!fs.existsSync(full)) return null;
   return { bytes: fs.readFileSync(full), mime: MIME[m[1]] };
+}
+
+// ---------- moderation (PICs and the Admin) ----------
+
+export type ModPhoto = { id: string; src: string; caption: string; created_at: string; status: "pending" | "live" | "removed"; reports: number; by_admin: boolean; likes: number };
+
+export function listForModeration(): ModPhoto[] {
+  const rows = getDb().prepare(
+    `SELECT p.id, p.file, p.caption, p.created_at, p.status, p.reports, p.by_admin,
+            (SELECT COUNT(*) FROM photo_likes l WHERE l.photo_id = p.id) AS likes
+     FROM photos p ORDER BY CASE p.status WHEN 'pending' THEN 0 WHEN 'live' THEN 1 ELSE 2 END, p.reports DESC, p.created_at DESC`,
+  ).all() as { id: string; file: string; caption: string; created_at: string; status: ModPhoto["status"]; reports: number; by_admin: number; likes: number }[];
+  return rows.map((r) => ({ id: r.id, src: `/uploads/${r.file}`, caption: r.caption, created_at: r.created_at, status: r.status, reports: r.reports, by_admin: !!r.by_admin, likes: r.likes }));
+}
+
+/** Approve (pending → live) or remove a post. Staff only; audited. */
+export function moderatePhoto(userId: string, photoId: string, action: "approve" | "remove" | "restore"): void {
+  const db = getDb();
+  tx(db, () => {
+    const p = db.prepare("SELECT status FROM photos WHERE id = ?").get(photoId) as { status: string } | undefined;
+    if (!p) throw new Error("That photo no longer exists.");
+    const to = action === "remove" ? "removed" : "live";
+    db.prepare("UPDATE photos SET status = ?, reports = CASE WHEN ? = 'live' THEN 0 ELSE reports END WHERE id = ?").run(to, to, photoId);
+    writeAudit(db, { userId, action: `photo_${action}`, before: { photo: photoId, status: p.status }, after: { photo: photoId, status: to } });
+    bumpLive(db);
+  });
+}
+
+export function storageUsedBytes(): number {
+  const dir = uploadDir();
+  if (!fs.existsSync(dir)) return 0;
+  return fs.readdirSync(dir).reduce((n, f) => n + fs.statSync(path.join(/* turbopackIgnore: true */ dir, f)).size, 0);
 }

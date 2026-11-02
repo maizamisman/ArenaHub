@@ -287,3 +287,41 @@ export function getLiveSnapshot(): LiveSnapshot {
   ).all());
   return { serverNow: nowIso(), version: liveVersion(db), matches: listPublicMatches(db), events };
 }
+
+// ---------- portal reads ----------
+
+/** Matches this user may control: all for the Admin, assigned ones (by match or court) for a PIC. */
+export function listMatchesFor(user: SessionUser): PublicMatch[] {
+  const db = getDb();
+  const all = listPublicMatches(db);
+  if (user.role === "admin") return all;
+  const asg = assignmentsFor(db, user.id);
+  return all.filter((m) => canControlMatch(user, { id: m.id, court_id: m.court.id }, asg));
+}
+
+export type LogLine = { id: string; at: string; who: string; text: string; reason: string | null };
+
+/** The score record for one match, newest first, in plain words. */
+export function matchLog(matchId: string): LogLine[] {
+  const db = getDb();
+  const m = getPublicMatch(matchId, db);
+  const name = (side: "a" | "b") => (side === "a" ? m?.team_a?.short_name : m?.team_b?.short_name) ?? "?";
+  const rows = db.prepare(
+    `SELECT a.id, a.at, a.action, a.before, a.after, a.reason, COALESCE(u.name, 'System') AS who
+     FROM audit_log a LEFT JOIN users u ON u.id = a.user_id WHERE a.match_id = ? ORDER BY a.rowid DESC LIMIT 200`,
+  ).all(matchId) as { id: string; at: string; action: string; before: string | null; after: string | null; reason: string | null; who: string }[];
+  return rows.map((r) => {
+    const b = r.before ? JSON.parse(r.before) : {};
+    const a = r.after ? JSON.parse(r.after) : {};
+    const sc = (x: { score_a?: number; score_b?: number }) => `${x.score_a}-${x.score_b}`;
+    let text = r.action;
+    if (r.action === "score_delta") text = `${a.delta > 0 ? "+1" : "−1"} for ${name(a.side)}, ${sc(a)}`;
+    else if (r.action === "score_correct") text = `Score corrected from ${sc(b)} to ${sc(a)}`;
+    else if (r.action === "score_undo") text = `Undo, back to ${sc(a)}`;
+    else if (r.action === "status") text = `${label(b.status)} to ${label(a.status)}${a.status === "full_time" ? `, ${sc(a)}` : ""}`;
+    else if (r.action === "reopen") text = `Reopened (was ${sc(b)})`;
+    else if (r.action === "advance") text = "Winner moved into this match";
+    else if (r.action === "event") text = `Event: ${a.kind}${a.detail ? `, ${a.detail}` : ""}`;
+    return { id: r.id, at: r.at, who: r.who, text, reason: r.reason };
+  });
+}
