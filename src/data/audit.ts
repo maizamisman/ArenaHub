@@ -34,3 +34,24 @@ export function liveVersion(db: DatabaseSync): number {
   const r = db.prepare("SELECT value FROM settings WHERE key = 'live_version'").get() as { value: string } | undefined;
   return r ? Number(r.value) : 0;
 }
+
+export type AuditRow = { id: string; at: string; who: string; user_id: string | null; action: string; match_id: string | null; match: string | null; before: string | null; after: string | null; reason: string | null };
+
+/** Audit Log, newest first, filtered by match, user and date (Malaysia time, YYYY-MM-DD). */
+export function listAudit(db: DatabaseSync, f: { matchId?: string; userId?: string; from?: string; to?: string; limit?: number } = {}): AuditRow[] {
+  const where: string[] = [];
+  const args: string[] = [];
+  if (f.matchId) { where.push("a.match_id = ?"); args.push(f.matchId); }
+  if (f.userId) { where.push("a.user_id = ?"); args.push(f.userId); }
+  if (f.from) { where.push("a.at >= ?"); args.push(new Date(`${f.from}T00:00:00+08:00`).toISOString()); }
+  if (f.to) { where.push("a.at < ?"); args.push(new Date(Date.parse(`${f.to}T00:00:00+08:00`) + 86_400_000).toISOString()); }
+  const rows = db.prepare(
+    `SELECT a.id, a.at, COALESCE(u.name, 'System') AS who, a.user_id, a.action, a.match_id, a.before, a.after, a.reason,
+            CASE WHEN m.id IS NULL THEN NULL ELSE COALESCE(ta.short_name, 'TBD') || ' vs ' || COALESCE(tb.short_name, 'TBD') || ', ' || s.name END AS match
+     FROM audit_log a LEFT JOIN users u ON u.id = a.user_id
+     LEFT JOIN matches m ON m.id = a.match_id LEFT JOIN sports s ON s.id = m.sport_id
+     LEFT JOIN teams ta ON ta.id = m.team_a LEFT JOIN teams tb ON tb.id = m.team_b
+     ${where.length ? `WHERE ${where.join(" AND ")}` : ""} ORDER BY a.rowid DESC LIMIT ${Math.min(f.limit ?? 300, 1000)}`,
+  ).all(...args) as AuditRow[];
+  return rows.map((r) => ({ ...r }));
+}

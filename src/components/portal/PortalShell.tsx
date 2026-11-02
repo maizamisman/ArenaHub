@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { logoutAction } from "@/app/staff/actions/auth";
 import { Brand } from "./Brand";
+import { statusLabel } from "./status";
 
 const IC: Record<string, string> = {
   dash: "M4 4h7v7H4zM13 4h7v4h-7zM13 11h7v9h-7zM4 14h7v6H4z",
@@ -150,8 +151,6 @@ export function Dialog({ title, onClose, children, footer, alert }: {
   );
 }
 
-const STATUS_LABEL: Record<string, string> = { upcoming: "Upcoming", live: "Live", paused: "Paused", half_time: "Half Time", full_time: "Full Time" };
-export const statusLabel = (s: string) => STATUS_LABEL[s] ?? s;
 
 export function StatusPill({ status, testId }: { status: string; testId?: string }) {
   return <span className={`pill st-${status}`}>{status === "live" && <i className="dot" />}<span data-testid={testId}>{statusLabel(status)}</span></span>;

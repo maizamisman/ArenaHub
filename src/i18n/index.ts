@@ -41,3 +41,9 @@ export const dayKey = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZo
 
 /** Google Maps directions to a court, built from its coordinates. */
 export const directionsUrl = (lat: number, lng: number) => `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+
+/** ISO time → "YYYY-MM-DDTHH:mm" in Malaysia time, for datetime-local inputs. */
+export const toMytInput = (iso: string) => {
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date(iso)).map((x) => [x.type, x.value]));
+  return `${p.year}-${p.month}-${p.day}T${p.hour === "24" ? "00" : p.hour}:${p.minute}`;
+};

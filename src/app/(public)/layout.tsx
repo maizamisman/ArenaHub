@@ -13,7 +13,7 @@ export default async function PublicLayout({ children }: { children: React.React
   const s = getSettings();
   return (
     <LiveProvider initial={getLiveSnapshot()} lang={lang}>
-      <PublicShell lang={lang} modules={s.modules} announcements={s.modules.announcements ? listAnnouncements(lang) : []} eventName={s.event_name} organiser={s.organiser}>
+      <PublicShell lang={lang} modules={s.modules} announcements={s.modules.announcements ? listAnnouncements(lang) : []} eventName={s.event_name} organiser={s.organiser} theme={s.theme_colour} logo={s.logo_path}>
         {children}
       </PublicShell>
     </LiveProvider>

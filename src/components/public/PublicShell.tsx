@@ -15,8 +15,8 @@ export const useShell = () => useContext(Shell)!;
 
 const clamp = (x: number, a: number, b: number) => Math.min(b, Math.max(a, x));
 
-export function PublicShell({ lang, modules, announcements, eventName, organiser, children }: {
-  lang: Lang; modules: Modules; announcements: Announcement[]; eventName: string; organiser: string; children: React.ReactNode;
+export function PublicShell({ lang, modules, announcements, eventName, organiser, theme, logo, children }: {
+  lang: Lang; modules: Modules; announcements: Announcement[]; eventName: string; organiser: string; theme: string; logo: string | null; children: React.ReactNode;
 }) {
   const t = dict(lang);
   const router = useRouter();
@@ -148,7 +148,7 @@ export function PublicShell({ lang, modules, announcements, eventName, organiser
 
   return (
     <Shell.Provider value={{ go, toast, modules, still }}>
-      <div ref={rootRef} className="site">
+      <div ref={rootRef} className="site" style={/^#[0-9a-f]{6}$/i.test(theme) ? ({ "--royal": theme } as React.CSSProperties) : undefined}>
         {loader && <div className="loader" aria-hidden="true"><div className="lw">Arena<em>Hub</em></div></div>}
         <div className={`wipe ${wipe}`} aria-hidden="true"><b>{wipeLabel}</b></div>
         <a href="#main" className="sr-only">Skip to content</a>
@@ -156,7 +156,7 @@ export function PublicShell({ lang, modules, announcements, eventName, organiser
         <header className={`nav${path === "/" ? "" : " solid"}`} data-nav>
           <div className="nav-in">
             <Link href="/" className="brand" aria-label={`Arena Hub, ${t.home}`} onClick={(e) => { e.preventDefault(); go("/", "Arena Hub"); }}>
-              <span className="fl"><img src="/flags/flag-a.svg" alt="" /><img src="/flags/flag-h.svg" alt="" /></span>
+              {logo ? <img src={logo} alt="" style={{ height: 34, width: "auto", maxWidth: 90, objectFit: "contain" }} /> : <span className="fl"><img src="/flags/flag-a.svg" alt="" /><img src="/flags/flag-h.svg" alt="" /></span>}
               <b>Arena<em>Hub</em></b>
             </Link>
             <nav className="links" aria-label="Main">

@@ -30,11 +30,18 @@ export function getMatch(db: DatabaseSync, id: string): Match {
 }
 
 /** Re-reads the account so a deactivated user is refused on their very next action. */
-function actor(db: DatabaseSync, user: SessionUser): SessionUser {
+export function actor(db: DatabaseSync, user: SessionUser): SessionUser {
   const row = db.prepare("SELECT id, name, email, role, active FROM users WHERE id = ?").get(user.id) as
     | { id: string; name: string; email: string; role: "admin" | "pic"; active: number } | undefined;
   if (!row || !row.active) throw new ForbiddenError("Your account is not active.");
   return { ...row, active: true };
+}
+
+/** The acting user, who must be the active Admin. */
+export function requireAdmin(db: DatabaseSync, user: SessionUser): SessionUser {
+  const me = actor(db, user);
+  if (me.role !== "admin") throw new ForbiddenError("Only the Admin can do this.");
+  return me;
 }
 
 function assignmentsFor(db: DatabaseSync, userId: string): Assignment[] {
