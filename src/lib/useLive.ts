@@ -12,7 +12,6 @@ export function useLive(initial: LiveSnapshot): LiveState & { refresh: () => Pro
   useEffect(() => {
     const p = createLivePoller({ initial, onChange: setState });
     poller.current = p;
-    setState(p.state());
     p.start();
     return () => p.stop();
     // The server-rendered snapshot seeds the poller once; later data comes from polling.

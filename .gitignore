@@ -45,3 +45,6 @@ next-env.d.ts
 /test-results/
 /playwright-report/
 /.superpowers/
+
+# e2e data
+/data/e2e*

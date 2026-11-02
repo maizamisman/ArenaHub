@@ -1,5 +1,5 @@
 import type { DatabaseSync } from "node:sqlite";
-import { getDb, tx, uuid, nowIso } from "./db.ts";
+import { getDb, tx, uuid, nowIso, plain } from "./db.ts";
 import { writeAudit, bumpLive, liveVersion } from "./audit.ts";
 import { canControlMatch } from "../domain/access.ts";
 import { advanceWinner } from "../domain/bracket.ts";
@@ -282,8 +282,8 @@ export function getPublicMatch(id: string, db: DatabaseSync = getDb()): PublicMa
 
 export function getLiveSnapshot(): LiveSnapshot {
   const db = getDb();
-  const events = db.prepare(
+  const events = plain<PublicEvent>(db.prepare(
     "SELECT id, match_id, kind, team, detail, minute_label, created_at FROM match_events ORDER BY created_at DESC, rowid DESC",
-  ).all() as PublicEvent[];
+  ).all());
   return { serverNow: nowIso(), version: liveVersion(db), matches: listPublicMatches(db), events };
 }

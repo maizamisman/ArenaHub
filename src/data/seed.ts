@@ -2,7 +2,7 @@ import type { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
-import { UPLOAD_DIR, uuid, nowIso } from "./db.ts";
+import { uploadDir, uuid, nowIso } from "./db.ts";
 import { hashPassword } from "../auth/password.ts";
 import { base32Encode } from "../auth/base32.ts";
 
@@ -211,7 +211,9 @@ export function seed(db: DatabaseSync, opts: SeedOptions = { adminPassword: DEFA
     for (const [key, evs] of Object.entries(EVENTS)) {
       evs.forEach(([minute, kind, team, title, detail], i) => {
         const createdAt = new Date(Date.parse(now) - (evs.length - i) * 60_000).toISOString();
-        ins("INSERT INTO match_events VALUES (?,?,?,?,?,?,?,?)", uuid(), matchId[key], kind, t(team), `${title}: ${detail}`, minute, null, createdAt);
+        // The kind gives the label (Goal, Yellow card...); notes and sets keep their own words.
+        const text = kind === "note" ? `${title}: ${detail}` : kind === "set" ? `${title}, ${detail}` : detail;
+        ins("INSERT INTO match_events VALUES (?,?,?,?,?,?,?,?)", uuid(), matchId[key], kind, t(team), text, minute, null, createdAt);
       });
     }
 
@@ -223,8 +225,8 @@ export function seed(db: DatabaseSync, opts: SeedOptions = { adminPassword: DEFA
       const id = uuid();
       const stored = `${id}.jpg`;
       if (opts.copyPhotos !== false && fs.existsSync(path.join(MOCK_IMAGE_DIR, file))) {
-        fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-        fs.copyFileSync(path.join(MOCK_IMAGE_DIR, file), path.join(UPLOAD_DIR, stored));
+        fs.mkdirSync(uploadDir(), { recursive: true });
+        fs.copyFileSync(path.join(MOCK_IMAGE_DIR, file), path.join(uploadDir(), stored));
       }
       ins("INSERT INTO photos VALUES (?,?,?,?,?,?,?,?)", id, stored, caption, new Date(when).toISOString(), "live", byAdmin ? 1 : 0, byAdmin ? "admin" : "seed", 0);
     }

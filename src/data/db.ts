@@ -2,9 +2,14 @@ import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import path from "node:path";
 
-export const DATA_DIR = path.join(process.cwd(), "data");
+export const DATA_DIR = path.join(/* turbopackIgnore: true */ process.cwd(), "data");
 export const UPLOAD_DIR = path.join(DATA_DIR, "uploads");
-const SCHEMA = path.join(process.cwd(), "src", "data", "schema.sql");
+
+/** Where uploaded photos live; tests point ARENAHUB_UPLOADS at a temp folder. */
+export function uploadDir(): string {
+  return process.env.ARENAHUB_UPLOADS ? path.resolve(process.env.ARENAHUB_UPLOADS) : UPLOAD_DIR;
+}
+const SCHEMA = path.join(/* turbopackIgnore: true */ process.cwd(), "src", "data", "schema.sql");
 
 export function defaultDbFile(): string {
   return process.env.ARENAHUB_DB ? path.resolve(process.env.ARENAHUB_DB) : path.join(DATA_DIR, "arenahub.db");
@@ -43,6 +48,11 @@ export function tx<T>(db: DatabaseSync, fn: () => T): T {
     db.exec("ROLLBACK");
     throw e;
   }
+}
+
+/** node:sqlite rows have a null prototype; copy them so they can cross to client components. */
+export function plain<T>(rows: unknown[]): T[] {
+  return rows.map((r) => ({ ...(r as object) }) as T);
 }
 
 export const uuid = () => crypto.randomUUID();
