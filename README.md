@@ -66,6 +66,18 @@ This deletes `data/arenahub.db` and `data/uploads/` and starts again from the sa
 
 Live Score checks for new scores every 10 seconds, at once when the page comes back into view, and when the phone regains signal. Nobody needs to refresh.
 
+## Put it online (free, from this computer)
+
+GitHub Pages cannot host ArenaHub: it serves static files only, and ArenaHub needs a running server for the database, sign-in, live scores and photo uploads. Instead, a free Cloudflare quick tunnel gives this computer a public https link:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\share-online.ps1
+```
+
+It builds the site, starts it on port 3001, and prints a `https://….trycloudflare.com` link. Anyone with the link can open the site while that window is open. Ctrl+C takes it offline. The link changes every time.
+
+Before sharing the link, sign in as Admin and change the sample passwords above: they are published in this repository. Change the Admin password, and under **PIC Accounts** reset or deactivate every PIC that still has the sample password.
+
 ## Backups
 
 The Admin can download everything (database and photos) as one zip from **Backup** (`/staff/admin/backup`). During the carnival, download one at the end of each day and keep it off this computer.
